@@ -3,8 +3,10 @@ package com.foodshop.foodsshop.service.product;
 import com.foodshop.foodsshop.GlobalExceptionHandler.ProductNotFoundException;
 import com.foodshop.foodsshop.model.Category;
 import com.foodshop.foodsshop.model.Product;
+import com.foodshop.foodsshop.repository.CategoryRepository;
 import com.foodshop.foodsshop.repository.ProductRepository;
 import com.foodshop.foodsshop.request.AddProductRequest;
+import com.foodshop.foodsshop.request.UpdateProductRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,14 +17,20 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ProductService implements IProductService{
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
     @Override
-    public Product addProduct(AddProductRequest product) {
+    public Product addProduct(AddProductRequest request) {
         //check if the category exists in the DB
         //if yes, set it as product category
         //if no, save into DB , then set as product category
-        Category category = Optional.ofNullable(CategoryRepository);
-        return null;
+        Category category = Optional.ofNullable(categoryRepository.findByName(request.getCategory().getName()))
+                .orElseGet(()->{
+                    Category newCategory = new Category(request.getCategory().getName());
+                    return categoryRepository.save(newCategory);
+                });
+        request.setCategory(category);
+        return productRepository.save(createProduct(request,category));
     }
 
     private Product createProduct(AddProductRequest request, Category category){
@@ -50,9 +58,27 @@ public class ProductService implements IProductService{
     }
 
     @Override
-    public void updateProduct(Product product, Long productId) {
+    public Product updateProduct(UpdateProductRequest request, Long productId) {
+        return productRepository.findById(productId)
+                .map(existingProduct-> updateExistingProduct(existingProduct, request))
+                .map(productRepository :: save)
+                .orElseThrow(()-> new ProductNotFoundException("Product not found"));
 
     }
+
+    private Product updateExistingProduct(Product existingProduct, UpdateProductRequest request){
+        existingProduct.setName(request.getName());;
+        existingProduct.setBrand(request.getBrand());;
+        existingProduct.setPrice(request.getPrice());;
+        existingProduct.setInventory(request.getInventory());;
+        existingProduct.setDescription(request.getDescription());;
+
+        Category category = categoryRepository.findByName(request.getCategory().getName());
+        existingProduct.setCategory(category);
+
+        return existingProduct;
+    }
+
 
     @Override
     public List<Product> getAllProducts() {
